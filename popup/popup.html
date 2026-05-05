@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Session Swapper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-logo">
+        <div class="logo-icon">⇄</div>
+        <span class="logo-text">SESSION SWAPPER</span>
+      </div>
+      <div class="active-domain" id="activeDomain">—</div>
+    </div>
+
+    <!-- Smart Access -->
+    <div class="section">
+      <div class="section-label">SMART ACCESS</div>
+      <div class="smart-access" id="smartAccess">
+        <button class="sa-btn" data-domain="claude.ai" title="Claude">
+          <span class="sa-icon">◈</span>
+          <span class="sa-name">Claude</span>
+        </button>
+        <button class="sa-btn" data-domain="chatgpt.com" title="ChatGPT">
+          <span class="sa-icon">◎</span>
+          <span class="sa-name">GPT</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- New Identity -->
+    <div class="section">
+      <div class="section-label">NEW IDENTITY</div>
+      <div class="capture-row">
+        <input type="text" id="labelInput" class="label-input" placeholder="Label profil ini..." maxlength="32" />
+        <div class="domain-badge" id="domainBadge">auto</div>
+      </div>
+      <button class="btn-capture" id="btnCapture">
+        <span class="btn-capture-icon">⊕</span>
+        Capture Session
+      </button>
+    </div>
+
+    <!-- Stored Profiles -->
+    <div class="section">
+      <div class="section-label-row">
+        <div class="section-label">STORED PROFILES</div>
+        <div class="profile-count" id="profileCount">0</div>
+      </div>
+      <div class="profiles-list" id="profilesList">
+        <div class="empty-state">
+          <div class="empty-icon">◌</div>
+          <div class="empty-text">Belum ada profil tersimpan</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-row">
+      <button class="btn-action" id="btnExportAll" title="Export semua profil">Export All</button>
+      <button class="btn-action" id="btnExportPick" title="Export profil yang dipilih">Export Pick</button>
+      <button class="btn-action btn-import" id="btnImport" title="Import & merge profil">Import</button>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+  </div>
+
+  <!-- Import file input (hidden) -->
+  <input type="file" id="importFile" accept=".json" style="display:none" />
+
+  <script src="popup.js"></script>
+</body>
+</html>
