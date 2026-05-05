@@ -44,7 +44,7 @@ async function writeCookies(cookies) {
 async function checkSessionValidity(domain) {
     const testUrls = {
         'claude.ai': 'https://claude.ai/api/auth/session',
-        'chatgpt.com': 'https://chatgpt.com/api/auth/session',
+        'chat.openai.com': 'https://chat.openai.com/api/auth/session',
     };
     const url = testUrls[domain] || `https://${domain}`;
     try {

@@ -1,6 +1,5 @@
 // popup/popup.js
 
-// ── Helpers ──
 function msg(type, data = {}) {
     return chrome.runtime.sendMessage({ type, ...data });
 }
@@ -11,9 +10,7 @@ function showToast(text, type = 'info') {
     el.textContent = text;
     el.className = `toast show ${type}`;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-        el.classList.remove('show');
-    }, 2500);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
 
 function downloadJson(json, filename) {
@@ -27,8 +24,7 @@ function downloadJson(json, filename) {
 }
 
 function formatDomain(domain) {
-    return domain.replace('chatgpt.com', 'ChatGPT')
-                 .replace('claude.ai', 'Claude');
+    return domain.replace('chatgpt.com', 'ChatGPT').replace('claude.ai', 'Claude');
 }
 
 function timeAgo(ts) {
@@ -42,14 +38,20 @@ function timeAgo(ts) {
     return 'just now';
 }
 
+function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // ── State ──
 let currentDomain = '';
 let profiles = [];
 let selectedIds = new Set();
+let activeProfileId = null; // profil yang sedang aktif dipakai
 
 // ── Init ──
 document.addEventListener('DOMContentLoaded', async () => {
     await detectDomain();
+    await loadActiveProfile();
     await loadProfiles();
     bindEvents();
 });
@@ -61,50 +63,63 @@ async function detectDomain() {
             currentDomain = res.domain;
             document.getElementById('activeDomain').textContent = currentDomain;
             document.getElementById('domainBadge').textContent = currentDomain;
-
-            // Highlight smart access button
             document.querySelectorAll('.sa-btn').forEach(btn => {
                 btn.classList.toggle('active-sa', btn.dataset.domain === currentDomain);
             });
         }
-    } catch (e) {
-        console.warn('Domain detection failed', e);
-    }
+    } catch (e) {}
+}
+
+async function loadActiveProfile() {
+    const data = await chrome.storage.local.get('activeProfile');
+    // activeProfile disimpan per domain: { 'claude.ai': id, 'chatgpt.com': id }
+    const map = data.activeProfile || {};
+    activeProfileId = map[currentDomain] || null;
 }
 
 async function loadProfiles() {
     const res = await msg('GET_ALL');
     profiles = res.profiles || [];
-    renderProfiles();
-    document.getElementById('profileCount').textContent = profiles.length;
+
+    // Filter berdasarkan domain aktif
+    const filtered = currentDomain
+        ? profiles.filter(p => p.domain === currentDomain)
+        : profiles;
+
+    document.getElementById('profileCount').textContent = filtered.length;
+    renderProfiles(filtered);
 }
 
-function renderProfiles() {
-    const list = document.getElementById('profilesList');
-    if (profiles.length === 0) {
-        list.innerHTML = `
+function renderProfiles(list) {
+    const container = document.getElementById('profilesList');
+    if (list.length === 0) {
+        container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon">◌</div>
-                <div class="empty-text">Belum ada profil tersimpan</div>
+                <div class="empty-text">Belum ada profil untuk ${formatDomain(currentDomain) || 'domain ini'}</div>
             </div>`;
         return;
     }
 
-    list.innerHTML = '';
-    for (const p of profiles) {
+    container.innerHTML = '';
+    for (const p of list) {
+        const isActive = p.id === activeProfileId;
         const item = document.createElement('div');
-        item.className = `profile-item${selectedIds.has(p.id) ? ' selected' : ''}`;
+        item.className = `profile-item${selectedIds.has(p.id) ? ' selected' : ''}${isActive ? ' is-active' : ''}`;
         item.dataset.id = p.id;
 
-        const validityClass = p.validity === true ? 'validity-valid' :
+        const validityClass = p.validity === true  ? 'validity-valid'   :
                               p.validity === false ? 'validity-expired' : 'validity-unknown';
-        const validityText = p.validity === true ? '✓ valid' :
-                             p.validity === false ? '✗ expired' : '? unknown';
+        const validityText  = p.validity === true  ? '✓ valid'   :
+                              p.validity === false ? '✗ expired' : '? unknown';
 
         item.innerHTML = `
             <input type="checkbox" class="profile-checkbox" data-id="${p.id}" ${selectedIds.has(p.id) ? 'checked' : ''} />
             <div class="profile-info">
-                <div class="profile-label">${escapeHtml(p.label)}</div>
+                <div class="profile-label-row">
+                    <div class="profile-label">${escapeHtml(p.label)}</div>
+                    ${isActive ? '<span class="badge-active">● ACTIVE</span>' : ''}
+                </div>
                 <div class="profile-meta">
                     <span class="profile-domain">${formatDomain(p.domain)}</span>
                     <span class="profile-validity ${validityClass}">${validityText}</span>
@@ -112,85 +127,60 @@ function renderProfiles() {
                 </div>
             </div>
             <div class="profile-actions">
-                <button class="btn-swap" data-id="${p.id}">SWAP</button>
+                <button class="btn-swap" data-id="${p.id}">${isActive ? 'RE-SWAP' : 'SWAP'}</button>
                 <button class="btn-delete" data-id="${p.id}">✕</button>
             </div>
         `;
-        list.appendChild(item);
+        container.appendChild(item);
     }
 
-    // Bind events per item
-    list.querySelectorAll('.btn-swap').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            handleSwap(btn.dataset.id);
-        });
+    container.querySelectorAll('.btn-swap').forEach(btn => {
+        btn.addEventListener('click', (e) => { e.stopPropagation(); handleSwap(btn.dataset.id); });
     });
-
-    list.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            handleDelete(btn.dataset.id);
-        });
+    container.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => { e.stopPropagation(); handleDelete(btn.dataset.id); });
     });
-
-    list.querySelectorAll('.profile-checkbox').forEach(cb => {
+    container.querySelectorAll('.profile-checkbox').forEach(cb => {
         cb.addEventListener('change', (e) => {
             e.stopPropagation();
-            const id = cb.dataset.id;
-            if (cb.checked) selectedIds.add(id);
-            else selectedIds.delete(id);
-            renderProfiles();
+            if (cb.checked) selectedIds.add(cb.dataset.id);
+            else selectedIds.delete(cb.dataset.id);
+            const filtered = currentDomain ? profiles.filter(p => p.domain === currentDomain) : profiles;
+            renderProfiles(filtered);
         });
     });
 }
 
-function escapeHtml(str) {
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ── Event Bindings ──
+// ── Events ──
 function bindEvents() {
-    // Smart Access — ganti domain target
     document.querySelectorAll('.sa-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             currentDomain = btn.dataset.domain;
             document.getElementById('activeDomain').textContent = currentDomain;
             document.getElementById('domainBadge').textContent = currentDomain;
             document.querySelectorAll('.sa-btn').forEach(b => b.classList.remove('active-sa'));
             btn.classList.add('active-sa');
+            await loadActiveProfile();
+            await loadProfiles();
         });
     });
 
-    // Capture
     document.getElementById('btnCapture').addEventListener('click', handleCapture);
-    document.getElementById('labelInput').addEventListener('keydown', (e) => {
+    document.getElementById('labelInput').addEventListener('keydown', e => {
         if (e.key === 'Enter') handleCapture();
     });
 
-    // Export All
     document.getElementById('btnExportAll').addEventListener('click', async () => {
         const res = await msg('EXPORT_ALL');
-        if (res.ok) {
-            downloadJson(res.json, `session-swapper-all-${Date.now()}.json`);
-            showToast('Export berhasil!', 'success');
-        }
+        if (res.ok) { downloadJson(res.json, `sesh-swapper-all-${Date.now()}.json`); showToast('Export berhasil!', 'success'); }
     });
 
-    // Export Pick
     document.getElementById('btnExportPick').addEventListener('click', async () => {
-        if (selectedIds.size === 0) {
-            showToast('Pilih profil dulu!', 'error');
-            return;
-        }
+        if (selectedIds.size === 0) { showToast('Pilih profil dulu!', 'error'); return; }
         const res = await msg('EXPORT_PICK', { ids: [...selectedIds] });
-        if (res.ok) {
-            downloadJson(res.json, `session-swapper-pick-${Date.now()}.json`);
-            showToast(`Export ${selectedIds.size} profil berhasil!`, 'success');
-        }
+        if (res.ok) { downloadJson(res.json, `sesh-swapper-pick-${Date.now()}.json`); showToast(`Export ${selectedIds.size} profil!`, 'success'); }
     });
 
-    // Import
     document.getElementById('btnImport').addEventListener('click', () => {
         document.getElementById('importFile').click();
     });
@@ -198,16 +188,11 @@ function bindEvents() {
     document.getElementById('importFile').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const text = await file.text();
         try {
+            const text = await file.text();
             const res = await msg('IMPORT_MERGE', { json: text });
-            if (res.ok) {
-                showToast(`Import ${res.count} profil baru!`, 'success');
-                await loadProfiles();
-            }
-        } catch {
-            showToast('File tidak valid!', 'error');
-        }
+            if (res.ok) { showToast(`Import ${res.count} profil baru!`, 'success'); await loadProfiles(); }
+        } catch { showToast('File tidak valid!', 'error'); }
         e.target.value = '';
     });
 }
@@ -215,15 +200,8 @@ function bindEvents() {
 // ── Handlers ──
 async function handleCapture() {
     const label = document.getElementById('labelInput').value.trim();
-    if (!label) {
-        showToast('Isi label dulu!', 'error');
-        document.getElementById('labelInput').focus();
-        return;
-    }
-    if (!currentDomain) {
-        showToast('Domain tidak terdeteksi', 'error');
-        return;
-    }
+    if (!label) { showToast('Isi label dulu!', 'error'); document.getElementById('labelInput').focus(); return; }
+    if (!currentDomain) { showToast('Domain tidak terdeteksi', 'error'); return; }
 
     const btn = document.getElementById('btnCapture');
     btn.textContent = 'Capturing...';
@@ -235,8 +213,6 @@ async function handleCapture() {
             document.getElementById('labelInput').value = '';
             showToast(`✓ "${label}" tersimpan!`, 'success');
             await loadProfiles();
-
-            // Auto-check validity
             checkValidity(res.profile.id, currentDomain);
         } else {
             showToast('Gagal capture!', 'error');
@@ -257,13 +233,21 @@ async function handleSwap(id) {
     try {
         const res = await msg('SWAP', { id });
         if (res.ok) {
+            // Simpan sebagai active profile untuk domain ini
+            const data = await chrome.storage.local.get('activeProfile');
+            const map = data.activeProfile || {};
+            map[profile.domain] = id;
+            await chrome.storage.local.set({ activeProfile: map });
+            activeProfileId = id;
+
             showToast(`✓ Swap ke "${profile.label}"`, 'success');
 
-            // Reload tab aktif di domain yang sama
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
             if (tabs[0]?.url?.includes(res.domain)) {
                 chrome.tabs.reload(tabs[0].id);
             }
+
+            await loadProfiles();
         } else {
             showToast('Swap gagal!', 'error');
         }
@@ -276,6 +260,15 @@ async function handleDelete(id) {
     const profile = profiles.find(p => p.id === id);
     if (!profile) return;
 
+    // Hapus dari active juga kalau ini yang aktif
+    if (activeProfileId === id) {
+        const data = await chrome.storage.local.get('activeProfile');
+        const map = data.activeProfile || {};
+        delete map[profile.domain];
+        await chrome.storage.local.set({ activeProfile: map });
+        activeProfileId = null;
+    }
+
     const res = await msg('DELETE', { id });
     if (res.ok) {
         selectedIds.delete(id);
@@ -287,7 +280,6 @@ async function handleDelete(id) {
 async function checkValidity(id, domain) {
     const res = await msg('CHECK_VALIDITY', { domain });
     if (res.ok) {
-        // Update validity di storage via background
         await chrome.runtime.sendMessage({ type: 'UPDATE_VALIDITY', id, valid: res.valid });
         await loadProfiles();
     }

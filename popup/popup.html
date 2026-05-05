@@ -3,39 +3,35 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Session Swapper</title>
+  <title>Sesh Swapper</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
   <div class="app">
-
-    <!-- Header -->
     <div class="header">
       <div class="header-logo">
         <div class="logo-icon">⇄</div>
-        <span class="logo-text">SESSION SWAPPER</span>
+        <span class="logo-text">SESH SWAPPER</span>
       </div>
       <div class="active-domain" id="activeDomain">—</div>
     </div>
 
-    <!-- Smart Access -->
     <div class="section">
       <div class="section-label">SMART ACCESS</div>
       <div class="smart-access" id="smartAccess">
         <button class="sa-btn" data-domain="claude.ai" title="Claude">
-          <span class="sa-icon">◈</span>
+          <img src="../icons/claude.png" class="sa-img" alt="Claude" />
           <span class="sa-name">Claude</span>
         </button>
         <button class="sa-btn" data-domain="chatgpt.com" title="ChatGPT">
-          <span class="sa-icon">◎</span>
+          <img src="../icons/gpt.png" class="sa-img" alt="GPT" />
           <span class="sa-name">GPT</span>
         </button>
       </div>
     </div>
 
-    <!-- New Identity -->
     <div class="section">
       <div class="section-label">NEW IDENTITY</div>
       <div class="capture-row">
@@ -48,7 +44,6 @@
       </button>
     </div>
 
-    <!-- Stored Profiles -->
     <div class="section">
       <div class="section-label-row">
         <div class="section-label">STORED PROFILES</div>
@@ -62,21 +57,16 @@
       </div>
     </div>
 
-    <!-- Actions -->
     <div class="actions-row">
-      <button class="btn-action" id="btnExportAll" title="Export semua profil">Export All</button>
-      <button class="btn-action" id="btnExportPick" title="Export profil yang dipilih">Export Pick</button>
-      <button class="btn-action btn-import" id="btnImport" title="Import & merge profil">Import</button>
+      <button class="btn-action" id="btnExportAll">Export All</button>
+      <button class="btn-action" id="btnExportPick">Export Pick</button>
+      <button class="btn-action btn-import" id="btnImport">Import</button>
     </div>
 
-    <!-- Toast -->
     <div class="toast" id="toast"></div>
-
   </div>
 
-  <!-- Import file input (hidden) -->
   <input type="file" id="importFile" accept=".json" style="display:none" />
-
   <script src="popup.js"></script>
 </body>
 </html>
